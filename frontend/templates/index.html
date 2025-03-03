@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Weather Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center min-h-screen p-6">
+
+    <!-- Header -->
+    <header class="w-full max-w-4xl text-center py-4">
+        <h1 class="text-3xl font-bold">🚀 Space Weather Monitor</h1>
+        <p class="text-gray-400">Real-time solar wind data from NOAA</p>
+    </header>
+
+    <!-- Data Display -->
+    <div class="w-full max-w-4xl bg-gray-800 p-6 rounded-lg shadow-md">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div>
+                <h2 class="text-lg font-semibold">🌍 Timestamp</h2>
+                <p id="timestamp" class="text-green-400">Loading...</p>
+            </div>
+            <div>
+                <h2 class="text-lg font-semibold">🧲 Magnetic Field (nT)</h2>
+                <p id="bt" class="text-green-400">Loading...</p>
+            </div>
+            <div>
+                <h2 class="text-lg font-semibold">💨 Plasma Density (p/cm³)</h2>
+                <p id="density" class="text-green-400">Loading...</p>
+            </div>
+            <div>
+                <h2 class="text-lg font-semibold">🚀 Wind Speed (km/s)</h2>
+                <p id="speed" class="text-green-400">Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="w-full max-w-4xl mt-6">
+        <canvas id="weatherChart"></canvas>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-6 text-gray-500 text-sm">
+        Data sourced from <a href="https://www.swpc.noaa.gov" class="underline">NOAA</a>
+    </footer>
+
+    <script>
+        let weatherChart;
+
+        // Function to fetch space weather data
+        async function fetchSpaceWeather() {
+            try {
+                const response = await fetch('/api/weather');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (data.error) {
+                    console.error("API Error:", data.error);
+                    // Display error messages in place of "Loading..."
+                    document.getElementById('timestamp').textContent = "Error";
+                    document.getElementById('bt').textContent = "Error";
+                    document.getElementById('density').textContent = "Error";
+                    document.getElementById('speed').textContent = "Error";
+                    return;
+                }
+
+                // Update the data display
+                document.getElementById('timestamp').textContent = data.timestamp || "N/A";
+                document.getElementById('bt').textContent = data.bt ? `${data.bt} nT` : "N/A";
+                document.getElementById('density').textContent = data.density ? `${data.density} p/cm³` : "N/A";
+                document.getElementById('speed').textContent = data.speed ? `${data.speed} km/s` : "N/A";
+
+                // Update the chart
+                updateChart(data);
+            } catch (error) {
+                console.error("Failed to fetch data:", error);
+                // Display error messages in place of "Loading..."
+                document.getElementById('timestamp').textContent = "Error";
+                document.getElementById('bt').textContent = "Error";
+                document.getElementById('density').textContent = "Error";
+                document.getElementById('speed').textContent = "Error";
+            }
+        }
+
+        // Function to initialize the chart
+        function setupChart() {
+            const ctx = document.getElementById('weatherChart').getContext('2d');
+            weatherChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [], // Timestamps
+                    datasets: [{
+                        label: 'Solar Wind Speed (km/s)',
+                        data: [], // Speed values
+                        borderColor: 'rgb(255, 99, 132)',
+                        borderWidth: 2,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Speed (km/s)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Function to update the chart with new data
+        function updateChart(data) {
+            if (!weatherChart) return;
+
+            const timestamp = data.timestamp;
+            const speed = data.speed;
+
+            // Add new data to the chart
+            weatherChart.data.labels.push(timestamp);
+            weatherChart.data.datasets[0].data.push(speed);
+
+            // Keep only the last 10 data points
+            if (weatherChart.data.labels.length > 10) {
+                weatherChart.data.labels.shift();
+                weatherChart.data.datasets[0].data.shift();
+            }
+
+            // Update the chart
+            weatherChart.update();
+        }
+
+        // Initialize the chart and fetch data
+        setupChart();
+        fetchSpaceWeather();
+        setInterval(fetchSpaceWeather, 30000); // Refresh every 30 seconds
+    </script>
+
+</body>
+</html>
